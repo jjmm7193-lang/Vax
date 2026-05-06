@@ -5,7 +5,7 @@ const config = require("./site-config.js");
 const articles = JSON.parse(fs.readFileSync("./data/articles.json", "utf-8"));
 
 // ✅ index.html is now your template
-const homeTemplate = fs.readFileSync("./index.html", "utf-8");
+const homeTemplate = fs.readFileSync("./Index.html", "utf-8");
 const articleTemplate = fs.readFileSync("./templates/article-template.html", "utf-8");
 
 // output folder for articles only
