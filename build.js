@@ -4,18 +4,16 @@ const path = require("path");
 const config = require("./site-config.js");
 const articles = JSON.parse(fs.readFileSync("./data/articles.json", "utf-8"));
 
-const homeTemplate = fs.readFileSync("./templates/index-template.html", "utf-8");
+// ✅ index.html is now your template
+const homeTemplate = fs.readFileSync("./index.html", "utf-8");
 const articleTemplate = fs.readFileSync("./templates/article-template.html", "utf-8");
 
-const distDir = "./dist";
-const articleOut = "./dist/articles";
-
-// ensure folders exist
-fs.mkdirSync(distDir, { recursive: true });
+// output folder for articles only
+const articleOut = "./articles";
 fs.mkdirSync(articleOut, { recursive: true });
 
 /* =========================================================
-   1. DISCOVER-LIKE SCORING SYSTEM
+   1. DISCOVER-LIKE SCORING SYSTEM (UNCHANGED)
 ========================================================= */
 function scoreArticle(article) {
   let score = 0;
@@ -35,14 +33,14 @@ function scoreArticle(article) {
 }
 
 /* =========================================================
-   2. PREPARE ARTICLES
+   2. PREPARE ARTICLES (UNCHANGED)
 ========================================================= */
 const ranked = articles
   .map(a => ({ ...a, score: scoreArticle(a) }))
   .sort((a, b) => b.score - a.score);
 
 /* =========================================================
-   3. AUTO RELATED ARTICLES
+   3. AUTO RELATED ARTICLES (UNCHANGED)
 ========================================================= */
 function getRelated(article, all) {
   return all
@@ -51,12 +49,11 @@ function getRelated(article, all) {
 }
 
 /* =========================================================
-   4. BUILD ARTICLE PAGES
+   4. BUILD ARTICLE PAGES (UNCHANGED LOGIC)
 ========================================================= */
 ranked.forEach(article => {
 
   const canonical = `${config.baseUrl}/articles/${article.slug}.html`;
-
   const related = getRelated(article, ranked);
 
   const html = articleTemplate
@@ -69,8 +66,8 @@ ranked.forEach(article => {
     .replace(/__DATE_MODIFIED__/g, article.dateModified || article.datePublished)
     .replace(/__DISPLAY_DATE__/g, new Date(article.datePublished).toDateString())
     .replace(/__CANONICAL_URL__/g, canonical)
-    .replace(/__RELATED_1__/g, related[0] ? `articles/${related[0].slug}.html` : "#")
-    .replace(/__RELATED_2__/g, related[1] ? `articles/${related[1].slug}.html` : "#");
+    .replace(/__RELATED_1__/g, related[0] ? `/articles/${related[0].slug}.html` : "#")
+    .replace(/__RELATED_2__/g, related[1] ? `/articles/${related[1].slug}.html` : "#");
 
   fs.writeFileSync(
     path.join(articleOut, `${article.slug}.html`),
@@ -84,55 +81,32 @@ ranked.forEach(article => {
 const latest = ranked[0];
 const rest = ranked.slice(1);
 
+// ⚠️ matches your current homepage structure (<a><h2><p>)
 const grid = rest.map(article => `
-<div class="grid-item">
-    <a href="articles/${article.slug}.html">
-        <img src="${article.image}" alt="${article.title}" loading="lazy">
-        <h3>${article.title}</h3>
-        <p>${article.description}</p>
-    </a>
-</div>
+<a href="/articles/${article.slug}.html">
+    <h2>${article.title}</h2>
+    <p>${article.description}</p>
+</a>
 `).join("");
 
 const homepage = homeTemplate
-  .replace(/{{LATEST_URL}}/g, `articles/${latest.slug}.html`)
+  .replace(/{{LATEST_URL}}/g, `/articles/${latest.slug}.html`)
   .replace(/{{LATEST_IMAGE}}/g, latest.image)
   .replace(/{{LATEST_TITLE}}/g, latest.title)
   .replace(/{{LATEST_DESCRIPTION}}/g, latest.description)
   .replace(/{{ALL_ARTICLES_GRID}}/g, grid);
 
 /* =========================================================
-   6. WRITE HOMEPAGE
+   6. SAFE WRITE TO index.html
 ========================================================= */
-fs.writeFileSync(
-  path.join(distDir, "index.html"),
-  homepage
-);
 
-/* =========================================================
-   7. COPY ASSETS (CRITICAL)
-========================================================= */
-function copyFolder(src, dest) {
-  if (!fs.existsSync(src)) return;
+// write temp file first
+fs.writeFileSync("./index.temp.html", homepage);
 
-  fs.mkdirSync(dest, { recursive: true });
-
-  fs.readdirSync(src).forEach(file => {
-    const srcPath = path.join(src, file);
-    const destPath = path.join(dest, file);
-
-    if (fs.lstatSync(srcPath).isDirectory()) {
-      copyFolder(srcPath, destPath);
-    } else {
-      fs.copyFileSync(srcPath, destPath);
-    }
-  });
-}
-
-// copy assets → dist
-copyFolder("./assets", "./dist/assets");
+// replace original index.html
+fs.renameSync("./index.temp.html", "./index.html");
 
 /* =========================================================
    DONE
 ========================================================= */
-console.log("✅ BUILD COMPLETE — SITE GENERATED IN /dist");
+console.log("✅ BUILD COMPLETE — ROOT SITE GENERATED");
